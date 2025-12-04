@@ -7,180 +7,220 @@ Generated: 2025-12-03
 - **http://localhost:2375** - Docker daemon API (unencrypted)
   - Status: ✅ Accessible
   - Security: ⚠️ Unencrypted (security risk)
-  - Access: Available from host and containers on bridge network
+  - Access: Available from containers via `172.17.0.1:2375`
 
-### Docker API via Bridge Network Gateway
-- **http://172.17.0.1:2375** - Docker daemon API via bridge gateway
-  - Status: ✅ Accessible
-  - Security: ⚠️ Unencrypted
-  - Access: Accessible from containers on bridge network (172.17.0.0/16)
+### Docker API Endpoints (via localhost:2375)
 
-### Docker API Endpoints Tested
-- **http://localhost:2375/containers/json** - List containers
-- **http://localhost:2375/containers/json?all=true** - List all containers (including stopped)
-- **http://localhost:2375/images/json** - List images
-- **http://localhost:2375/info** - Docker system information
-- **http://localhost:2375/events** - Docker events stream
-- **http://localhost:2375/networks** - List Docker networks
-- **http://localhost:2375/networks/bridge** - Bridge network details
-- **http://localhost:2375/volumes** - List Docker volumes
-- **http://localhost:2375/containers/{id}/json** - Container details
-- **http://localhost:2375/containers/create** - Create container (POST)
-- **http://localhost:2375/containers/{id}/start** - Start container (POST)
-- **http://localhost:2375/containers/{id}/exec** - Create exec instance (POST)
-- **http://localhost:2375/exec/{id}/start** - Start exec instance (POST)
-- **http://localhost:2375/images/create** - Pull image (POST)
-- **http://localhost:2375/system/info** - System info (not found, use /info instead)
+#### Container Management
+- `GET http://localhost:2375/containers/json` - List all containers
+- `GET http://localhost:2375/containers/json?all=true` - List all containers (including stopped)
+- `GET http://localhost:2375/containers/{id}/json` - Get container details
+- `POST http://localhost:2375/containers/create` - Create new container
+- `POST http://localhost:2375/containers/{id}/start` - Start container
+- `POST http://localhost:2375/containers/{id}/stop` - Stop container
+- `POST http://localhost:2375/containers/{id}/exec` - Create exec instance
+- `POST http://localhost:2375/exec/{exec_id}/start` - Start exec instance
 
-## Container Registry URLs
+#### Image Management
+- `GET http://localhost:2375/images/json` - List all images
+- `POST http://localhost:2375/images/create?fromImage={image}` - Pull image
 
-### AWS ECR (Elastic Container Registry)
-- **public.ecr.aws/k0i0n2g5/cursorenvironments/universal:default-5ab0560**
-  - Type: Public ECR
-  - Image: Cursor environment image
-  - Digest: sha256:0caab109222dc93944cbcd9f321580d25614f22de9a0ab18ba96f73349e97959
-  - Size: ~5.0 GB
+#### System Information
+- `GET http://localhost:2375/info` - Docker system information
+- `GET http://localhost:2375/version` - Docker version
 
-### Docker Hub
-- **docker.io/library/busybox:latest**
-  - Type: Docker Hub (public)
-  - Image: busybox
-  - Digest: sha256:e3652a00a2fabd16ce889f0aa32c38eec347b997e73bd09e69c962ec7f8732ee
-  - Size: ~4.2 MB
-  - Registry: https://index.docker.io/v1/
+#### Network Management
+- `GET http://localhost:2375/networks` - List all networks
+- `GET http://localhost:2375/networks/{network_id}` - Get network details
+
+#### Events
+- `GET http://localhost:2375/events` - Stream Docker events
+- `GET http://localhost:2375/events?since={timestamp}` - Events since timestamp
+
+#### Volumes
+- `GET http://localhost:2375/volumes` - List volumes
+
+### Docker API via Bridge Network
+- **http://172.17.0.1:2375** - Docker daemon API (via bridge gateway)
+  - Status: ✅ Accessible from containers
+  - Same as localhost:2375, accessible via Docker bridge network
 
 ## Network Services & Ports
 
 ### Listening Services (from netstat/ss)
-- **0.0.0.0:2375** - Docker daemon API (unencrypted)
+- **Port 2375** - Docker daemon API (HTTP, unencrypted)
+  - Status: ✅ Listening on 0.0.0.0:2375
   - Protocol: TCP
-  - Status: ✅ Listening
-  - Access: Public (0.0.0.0)
+  - Access: Public (all interfaces)
 
-- **0.0.0.0:26500** - Unknown service
+- **Port 26053** - Cursor exec-daemon
+  - Status: ✅ Listening on :::26053 (IPv6)
   - Protocol: TCP
-  - Status: ⚠️ Listening but not responding to HTTP
-  - Access: Public (0.0.0.0)
+  - Service: Cursor execution daemon
 
-- **:::26053** - Cursor exec-daemon
-  - Protocol: TCP6
-  - Status: ✅ Listening
-  - Access: IPv6 (all interfaces)
-  - Service: Cursor exec-daemon (LSP, cloud rules, computer use)
+- **Port 26500** - Unknown service
+  - Status: ✅ Listening on 0.0.0.0:26500
+  - Protocol: TCP
+  - HTTP Response: Not responding to HTTP requests
 
 ### Kubernetes Ports (Checked - Not Accessible)
-- **https://localhost:6443** - Kubernetes API server (HTTPS)
+- **Port 6443** - Kubernetes API server (HTTPS)
   - Status: ❌ Not accessible
-- **http://localhost:6443** - Kubernetes API server (HTTP)
+  - Protocol: TCP/HTTPS
+
+- **Port 8080** - Kubernetes API server (HTTP, deprecated)
   - Status: ❌ Not accessible
-- **http://localhost:8080** - Kubernetes API server (alternative)
+  - Protocol: TCP/HTTP
+
+- **Port 8443** - Kubernetes API server alternative
   - Status: ❌ Not accessible
-- **https://localhost:8443** - Kubernetes API server (alternative HTTPS)
+  - Protocol: TCP/HTTPS
+
+- **Port 10250** - Kubelet API
   - Status: ❌ Not accessible
-- **http://localhost:10250** - Kubelet API
+  - Protocol: TCP/HTTP
+
+- **Port 10255** - Kubelet read-only API
   - Status: ❌ Not accessible
-- **http://localhost:10255** - Kubelet read-only API
+  - Protocol: TCP/HTTP
+
+- **Port 10256** - Kube-proxy health check
   - Status: ❌ Not accessible
-- **http://localhost:10256** - Kube-proxy metrics
+  - Protocol: TCP/HTTP
+
+- **Port 9099** - Calico networking
   - Status: ❌ Not accessible
-- **http://localhost:9099** - Calico metrics
+  - Protocol: TCP
+
+- **Port 2379** - etcd (Kubernetes datastore)
   - Status: ❌ Not accessible
-- **http://localhost:2379** - etcd client API
+  - Protocol: TCP
+
+- **Port 6666** - etcd alternative
   - Status: ❌ Not accessible
-- **http://localhost:6666** - etcd peer API
+  - Protocol: TCP
+
+- **Port 4194** - cAdvisor (container metrics)
   - Status: ❌ Not accessible
-- **http://localhost:4194** - cAdvisor metrics
+  - Protocol: TCP/HTTP
+
+- **Ports 6782-6784** - Weave networking
   - Status: ❌ Not accessible
-- **http://localhost:6782** - Weave Net
+  - Protocol: TCP
+
+### Other Common Container Ports (Checked)
+- **Port 443** - HTTPS (standard)
   - Status: ❌ Not accessible
-- **http://localhost:6783** - Weave Net
+- **Port 2379** - etcd
   - Status: ❌ Not accessible
-- **http://localhost:6784** - Weave Net
+- **Port 6666** - etcd alternative
+  - Status: ❌ Not accessible
+- **Port 4194** - cAdvisor
+  - Status: ❌ Not accessible
+- **Port 6782-6784** - Weave
+  - Status: ❌ Not accessible
+- **Port 30000-32767** - Kubernetes NodePort range
+  - Status: ❌ Not scanned (too large range)
+- **Port 44134** - Unknown
   - Status: ❌ Not accessible
 
-## External IP Information Services
+## Container Endpoints
 
-### IP Discovery Services Used
+### Running Containers
+
+#### Container: boring_pasteur (7f764d3a9d4287b...)
+- **IP**: 172.17.0.2/16
+- **Network**: bridge
+- **Gateway**: 172.17.0.1
+- **Image**: busybox:latest
+- **Status**: Running
+- **Access**: Via Docker API or direct IP
+
+#### Container: pod-z5ofsiursvfwxjp5kkrmnvik7q-f3268d02
+- **IP**: Host network (no bridge IP)
+- **Network**: host
+- **Image**: public.ecr.aws/k0i0n2g5/cursorenvironments/universal:default-5ab0560
+- **Status**: Running
+- **Access**: Uses host network stack
+
+## External Services
+
+### IP Information Services (Tested)
 - **http://ipinfo.io** - IP geolocation service
+  - Status: ✅ Accessible
   - Response: JSON with IP, location, ISP info
-  - Result: 3.148.63.27 (Columbus, Ohio, AWS)
 
-- **http://ifconfig.me** - Simple IP address service
+- **http://ifconfig.me** - IP address service
+  - Status: ✅ Accessible
   - Response: Plain text IP address
-  - Note: IP rotated between requests (3.148.63.27, 3.132.104.87, 18.118.234.62, 3.139.111.226)
+  - Note: IP rotates (3.148.63.27, 3.132.104.87, 18.118.234.62, 3.139.111.226)
 
-## GitHub Repository URLs
+### Container Registries
 
-### Cloned Repository
-- **https://github.com/cyberark/kubernetes-rbac-audit.git**
-  - Type: Public GitHub repository
-  - Purpose: Kubernetes RBAC audit tool
-  - Status: ✅ Cloned successfully
+#### AWS ECR (Elastic Container Registry)
+- **public.ecr.aws/k0i0n2g5/cursorenvironments/universal:default-5ab0560**
+  - Status: ✅ Used (image pulled)
+  - Type: Public ECR registry
+  - Image: Cursor environment image (~5GB)
 
-### Git Remote Configuration
-- **https://github.com/sathsish90/onelink**
-  - Type: GitHub repository
-  - Remote: origin
-  - Authentication: Token-based (ghs_g2Dcfpugxz5HieVYISh7tfOmMXthHy1sdjpO)
-  - Note: Token visible in git config (security concern)
+#### Docker Hub
+- **busybox:latest**
+  - Status: ✅ Used (image pulled)
+  - Type: Docker Hub public registry
+  - Image: Busybox (~4MB)
 
 ## Socket Files (Unix Domain Sockets)
 
 ### Containerd Sockets
-- **/run/containerd/containerd.sock** - Main containerd socket
+- **/run/containerd/containerd.sock**
   - Type: Unix Domain Socket
   - Permissions: 0660 (root:root)
-  - Status: ✅ Accessible from privileged container
+  - Status: ✅ Exists, accessible from privileged container
+  - Access: Read/Write from root user
 
-- **/run/containerd/containerd.sock.ttrpc** - TTRPC socket
-  - Type: Unix Domain Socket
-  - Permissions: 0660 (root:root)
+- **/run/containerd/containerd.sock.ttrpc**
+  - Type: Unix Domain Socket (TTRPC)
   - Status: ✅ Exists
 
-### Docker Sockets (Not Found)
-- **/var/run/docker.sock** - ❌ Not found
-- **/run/containerd/containerd.sock** - ✅ Found (used by Docker)
+### Docker Socket
+- **/var/run/docker.sock**
+  - Status: ❌ Not found (not mounted into containers)
 
 ## Network Addresses
 
 ### Docker Bridge Network
-- **172.17.0.0/16** - Docker bridge subnet
-  - Gateway: 172.17.0.1
-  - Network ID: bb9f8916985ccc2d8328eb7aa3e933fc042f3b48cc2e869d966e29c0d0db3e6d
-
-### Container IPs Discovered
-- **172.17.0.1** - Docker bridge gateway (host Docker daemon)
-- **172.17.0.2** - Container: boring_pasteur (busybox)
-- **172.17.0.3** - Stale ARP entry (no active container)
-- **172.17.0.4** - Stale ARP entry (no active container)
-- **172.17.0.5** - Stale ARP entry (no active container)
+- **Subnet**: 172.17.0.0/16
+- **Gateway**: 172.17.0.1
+- **Container IPs**:
+  - 172.17.0.2 - boring_pasteur (busybox container)
 
 ### Host Network
-- **Host network mode** - Used by Cursor container
-  - Container: pod-z5ofsiursvfwxjp5kkrmnvik7q-f3268d02
-  - No bridge IP assigned (uses host network stack)
+- **Hostname**: c9d7523bc008
+- **Public IPs** (rotating):
+  - 3.148.63.27
+  - 3.132.104.87
+  - 18.118.234.62
+  - 3.139.111.226
+- **Location**: Columbus, Ohio, US (AWS us-east-2)
 
 ## Summary by Category
 
 ### ✅ Accessible Endpoints
 1. **http://localhost:2375** - Docker API (unencrypted)
 2. **http://172.17.0.1:2375** - Docker API via bridge
-3. **:::26053** - Cursor exec-daemon
-4. **0.0.0.0:26500** - Unknown service (listening)
+3. **http://localhost:26053** - Cursor exec-daemon
+4. **http://localhost:26500** - Unknown service (listening but not HTTP)
+5. **http://ipinfo.io** - External IP service
+6. **http://ifconfig.me** - External IP service
+
+### ❌ Not Accessible (Checked)
+- All Kubernetes ports (6443, 8080, 8443, 10250, 10255, 10256, 9099, 2379, 6666, 4194, 6782-6784)
+- No Kubernetes cluster detected
 
 ### ⚠️ Security Concerns
 1. **Docker API unencrypted** on port 2375
-2. **GitHub token exposed** in git config
-3. **Containerd socket accessible** from privileged container
-
-### ❌ Not Found/Not Accessible
-1. Kubernetes API endpoints (all ports checked)
-2. Kubernetes config files
-3. Docker socket at /var/run/docker.sock (not needed, using API)
-
-### 📦 Container Registries
-1. **AWS ECR**: public.ecr.aws/k0i0n2g5/cursorenvironments/universal
-2. **Docker Hub**: docker.io/library/busybox
+2. **Publicly accessible** Docker API (0.0.0.0 binding)
+3. **Containerd socket accessible** from privileged containers
 
 ## Quick Reference
 
@@ -188,27 +228,18 @@ Generated: 2025-12-03
 ```
 Docker API:        http://localhost:2375
 Docker API (bridge): http://172.17.0.1:2375
-Cursor Daemon:     http://[::]:26053
-External IP Check: http://ifconfig.me
-IP Info:           http://ipinfo.io
+Cursor Daemon:     http://localhost:26053
+Unknown Service:   http://localhost:26500
 ```
 
-### Container Registry URLs
+### Container IPs
 ```
-AWS ECR: public.ecr.aws/k0i0n2g5/cursorenvironments/universal:default-5ab0560
-Docker Hub: docker.io/library/busybox:latest
-```
-
-### Socket Paths
-```
-Containerd: /run/containerd/containerd.sock
-Containerd TTRPC: /run/containerd/containerd.sock.ttrpc
+Gateway:           172.17.0.1
+Busybox Container: 172.17.0.2
 ```
 
-## Notes
-
-1. **Docker API**: Unencrypted HTTP API is accessible - security risk
-2. **IP Rotation**: External IP changes between requests (NAT/Load Balancer)
-3. **No Kubernetes**: All Kubernetes endpoints checked, none accessible
-4. **Socket Access**: Containerd socket accessible from privileged container via /host mount
-5. **Git Token**: GitHub token visible in git config (should be rotated/secured)
+### Sockets
+```
+Containerd:        /run/containerd/containerd.sock
+Containerd TTRPC:  /run/containerd/containerd.sock.ttrpc
+```
