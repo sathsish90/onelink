@@ -184,8 +184,8 @@ chroot /host tail -20 /var/log/secure 2>/dev/null || echo "  Cannot read auth lo
 echo ""
 
 echo "[*] Recent syslog:"
-chroot /host tail -20 /var/log/syslog 2>/dev/null || \
-chroot /host tail -20 /var/log/messages 2>/dev/null | head -20 || echo "  Cannot read syslog"
+chroot /host tail -10 /var/log/syslog 2>/dev/null || \
+chroot /host tail -10 /var/log/messages 2>/dev/null || echo "  Cannot read syslog"
 echo ""
 
 echo "=========================================="
