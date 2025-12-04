@@ -9,190 +9,183 @@ echo ""
 
 echo "=== 1. SYSTEM INFORMATION ==="
 echo "[*] Operating System:"
-chroot /host cat /etc/os-release 2>/dev/null | grep -E "(NAME|VERSION)" || echo "  Cannot read OS info"
+chroot /host cat /etc/os-release 2>/dev/null | head -10 || echo "  Cannot read OS info"
 echo ""
 
 echo "[*] Kernel Version:"
-chroot /host uname -a 2>/dev/null || cat /host/proc/version 2>/dev/null | head -1
+chroot /host uname -a 2>/dev/null || echo "  Cannot get kernel info"
 echo ""
 
 echo "[*] Hostname:"
-chroot /host hostname 2>/dev/null || cat /host/etc/hostname 2>/dev/null
+chroot /host hostname 2>/dev/null || echo "  Cannot get hostname"
 echo ""
 
 echo "[*] Uptime:"
-chroot /host uptime 2>/dev/null || cat /host/proc/uptime 2>/dev/null
+chroot /host uptime 2>/dev/null || echo "  Cannot get uptime"
 echo ""
 
-echo "[*] CPU Information:"
-chroot /host lscpu 2>/dev/null | head -10 || cat /host/proc/cpuinfo 2>/dev/null | grep -E "(model name|processor)" | head -5
+echo "=== 2. HARDWARE INFORMATION ==="
+echo "[*] CPU Info:"
+chroot /host cat /proc/cpuinfo 2>/dev/null | grep -E "(model name|processor)" | head -5 || echo "  Cannot read CPU info"
 echo ""
 
-echo "[*] Memory Information:"
-chroot /host free -h 2>/dev/null || cat /host/proc/meminfo 2>/dev/null | head -5
-echo ""
-
-echo "=== 2. NETWORK CONFIGURATION ==="
-echo "[*] Network Interfaces:"
-chroot /host ip addr show 2>/dev/null | grep -E "^[0-9]+:|inet " || cat /host/proc/net/route 2>/dev/null | head -5
-echo ""
-
-echo "[*] Routing Table:"
-chroot /host ip route 2>/dev/null | head -10 || cat /host/proc/net/route 2>/dev/null | head -10
-echo ""
-
-echo "[*] ARP Table:"
-cat /host/proc/net/arp 2>/dev/null
-echo ""
-
-echo "[*] Listening Ports (from /proc/net/tcp):"
-cat /host/proc/net/tcp 2>/dev/null | awk '{print $2, $10}' | head -20
-echo ""
-
-echo "[*] DNS Configuration:"
-chroot /host cat /etc/resolv.conf 2>/dev/null
-echo ""
-
-echo "=== 3. USERS AND GROUPS ==="
-echo "[*] Users (from /etc/passwd):"
-chroot /host cat /etc/passwd 2>/dev/null | grep -E ":/bin/(bash|sh)" | head -10
-echo ""
-
-echo "[*] Root user details:"
-chroot /host cat /etc/passwd 2>/dev/null | grep "^root"
-echo ""
-
-echo "[*] Sudoers:"
-chroot /host cat /etc/sudoers 2>/dev/null | grep -v "^#" | grep -v "^$" | head -10
-echo ""
-
-echo "[*] Groups:"
-chroot /host cat /etc/group 2>/dev/null | head -20
-echo ""
-
-echo "=== 4. RUNNING PROCESSES ==="
-echo "[*] Process List (top 20 by PID):"
-chroot /host ps aux 2>/dev/null | head -20 || cat /host/proc/*/cmdline 2>/dev/null | strings | head -20
-echo ""
-
-echo "[*] Process Tree:"
-chroot /host pstree 2>/dev/null | head -30 || echo "  pstree not available"
-echo ""
-
-echo "=== 5. SERVICES AND SYSTEMD ==="
-echo "[*] Systemd Services (running):"
-chroot /host systemctl list-units --type=service --state=running 2>/dev/null | head -20 || echo "  systemctl not available"
-echo ""
-
-echo "[*] Enabled Services:"
-chroot /host systemctl list-unit-files --type=service --state=enabled 2>/dev/null | head -20 || echo "  systemctl not available"
-echo ""
-
-echo "=== 6. DOCKER/KUBERNETES ==="
-echo "[*] Docker Socket:"
-ls -la /host/var/run/docker.sock 2>/dev/null || ls -la /host/run/docker.sock 2>/dev/null || echo "  Docker socket not found"
-echo ""
-
-echo "[*] Containerd Socket:"
-ls -la /host/run/containerd/containerd.sock 2>/dev/null || ls -la /host/var/run/containerd/containerd.sock 2>/dev/null || echo "  Containerd socket not found"
-echo ""
-
-echo "[*] Kubernetes Components:"
-ls -la /host/var/lib/kubelet/ 2>/dev/null | head -10 || echo "  Kubelet directory not found"
-ls -la /host/etc/kubernetes/ 2>/dev/null | head -10 || echo "  Kubernetes config not found"
-echo ""
-
-echo "[*] Kubernetes Service Account (if in pod):"
-cat /host/var/run/secrets/kubernetes.io/serviceaccount/token 2>/dev/null && echo "  [Token found!]" || echo "  No service account token"
-cat /host/var/run/secrets/kubernetes.io/serviceaccount/namespace 2>/dev/null && echo "  [Namespace found!]" || echo "  No namespace file"
-echo ""
-
-echo "=== 7. CREDENTIALS AND SENSITIVE FILES ==="
-echo "[*] SSH Keys:"
-ls -la /host/root/.ssh/ 2>/dev/null | head -10 || echo "  No root .ssh directory"
-find /host/home -name "id_rsa" -o -name "id_ed25519" -o -name "id_ecdsa" 2>/dev/null | head -10
-echo ""
-
-echo "[*] Docker Config:"
-chroot /host cat /root/.docker/config.json 2>/dev/null | python3 -m json.tool 2>/dev/null || echo "  No Docker config found"
-find /host/home -name ".docker" -type d 2>/dev/null | head -5
-echo ""
-
-echo "[*] Kubernetes Config:"
-find /host -path "*/.kube/config" 2>/dev/null | head -5
-find /host -name "kubeconfig" 2>/dev/null | head -5
-echo ""
-
-echo "[*] AWS Credentials:"
-find /host -name ".aws" -type d 2>/dev/null | head -5
-find /host -path "*/.aws/credentials" 2>/dev/null | head -5
-echo ""
-
-echo "[*] Environment Files with Secrets:"
-find /host -name ".env" -type f 2>/dev/null | head -10
-grep -r "PASSWORD\|SECRET\|API_KEY\|TOKEN" /host/etc 2>/dev/null | head -5 || echo "  No obvious secrets in /etc"
-echo ""
-
-echo "=== 8. SCHEDULED TASKS ==="
-echo "[*] Crontab:"
-chroot /host cat /etc/crontab 2>/dev/null | grep -v "^#" | grep -v "^$"
-echo ""
-
-echo "[*] User Crontabs:"
-chroot /host ls -la /var/spool/cron/crontabs/ 2>/dev/null || chroot /host ls -la /var/spool/cron/ 2>/dev/null || echo "  Cannot access crontabs"
-echo ""
-
-echo "[*] Systemd Timers:"
-chroot /host systemctl list-timers 2>/dev/null | head -10 || echo "  systemctl not available"
-echo ""
-
-echo "=== 9. MOUNTED FILESYSTEMS ==="
-echo "[*] Mount Points:"
-chroot /host mount 2>/dev/null | head -20 || cat /host/proc/mounts | head -20
+echo "[*] Memory Info:"
+chroot /host free -h 2>/dev/null || echo "  Cannot read memory info"
 echo ""
 
 echo "[*] Disk Usage:"
-chroot /host df -h 2>/dev/null | head -15
+chroot /host df -h 2>/dev/null | head -10 || echo "  Cannot read disk info"
 echo ""
 
-echo "=== 10. INSTALLED SOFTWARE ==="
-echo "[*] Installed Packages (if Debian/Ubuntu):"
-chroot /host dpkg -l 2>/dev/null | head -20 || echo "  Not a Debian-based system"
+echo "=== 3. NETWORK CONFIGURATION ==="
+echo "[*] Network Interfaces:"
+chroot /host ip addr show 2>/dev/null | grep -E "^[0-9]|inet " | head -20 || \
+chroot /host ifconfig 2>/dev/null | head -20 || echo "  Cannot read network info"
 echo ""
 
-echo "[*] Installed Packages (if RedHat/CentOS):"
-chroot /host rpm -qa 2>/dev/null | head -20 || echo "  Not an RPM-based system"
+echo "[*] Routing Table:"
+chroot /host ip route 2>/dev/null | head -10 || \
+chroot /host route -n 2>/dev/null | head -10 || echo "  Cannot read routing table"
 echo ""
 
-echo "[*] Docker Images (if docker command available):"
-chroot /host docker images 2>/dev/null | head -10 || echo "  Docker CLI not available"
+echo "[*] ARP Table:"
+chroot /host ip neigh show 2>/dev/null | head -10 || \
+chroot /host arp -a 2>/dev/null | head -10 || echo "  Cannot read ARP table"
+echo ""
+
+echo "[*] Listening Ports:"
+chroot /host netstat -tulpn 2>/dev/null | head -20 || \
+chroot /host ss -tulpn 2>/dev/null | head -20 || echo "  Cannot read listening ports"
+echo ""
+
+echo "=== 4. USERS AND GROUPS ==="
+echo "[*] Users:"
+chroot /host cat /etc/passwd 2>/dev/null | head -20 || echo "  Cannot read passwd"
+echo ""
+
+echo "[*] Groups:"
+chroot /host cat /etc/group 2>/dev/null | head -20 || echo "  Cannot read groups"
+echo ""
+
+echo "[*] Sudoers:"
+chroot /host cat /etc/sudoers 2>/dev/null | grep -v "^#" | grep -v "^$" | head -20 || echo "  Cannot read sudoers"
+echo ""
+
+echo "[*] Last logged in users:"
+chroot /host last 2>/dev/null | head -10 || echo "  Cannot read last logins"
+echo ""
+
+echo "=== 5. RUNNING PROCESSES ==="
+echo "[*] Top processes:"
+chroot /host ps aux 2>/dev/null | head -20 || echo "  Cannot read processes"
+echo ""
+
+echo "[*] Systemd services:"
+chroot /host systemctl list-units --type=service --state=running 2>/dev/null | head -20 || echo "  Cannot read services"
+echo ""
+
+echo "=== 6. INSTALLED SOFTWARE ==="
+echo "[*] Installed packages (if apt):"
+chroot /host dpkg -l 2>/dev/null | head -20 || echo "  Not Debian-based or cannot read packages"
+echo ""
+
+echo "[*] Installed packages (if rpm):"
+chroot /host rpm -qa 2>/dev/null | head -20 || echo "  Not RPM-based or cannot read packages"
+echo ""
+
+echo "=== 7. DOCKER/KUBERNETES ==="
+echo "[*] Docker version:"
+chroot /host docker --version 2>/dev/null || echo "  Docker CLI not found"
+echo ""
+
+echo "[*] Docker containers on host:"
+chroot /host docker ps -a 2>/dev/null | head -10 || echo "  Cannot list containers"
+echo ""
+
+echo "[*] Kubernetes components:"
+ls -la /host/var/lib/kubelet/ 2>/dev/null | head -10 || echo "  Kubelet not found"
+ls -la /host/etc/kubernetes/ 2>/dev/null | head -10 || echo "  Kubernetes config not found"
+echo ""
+
+echo "[*] Container runtimes:"
+ls -la /host/run/containerd/containerd.sock 2>/dev/null && echo "  containerd found" || echo "  containerd not found"
+ls -la /host/var/run/containerd/containerd.sock 2>/dev/null && echo "  containerd found (alt)" || echo "  containerd not found (alt)"
+echo ""
+
+echo "=== 8. CREDENTIALS AND SENSITIVE FILES ==="
+echo "[*] SSH keys:"
+find /host/root/.ssh -type f 2>/dev/null | head -10 || echo "  No root SSH keys found"
+find /host/home -name ".ssh" -type d 2>/dev/null | head -10 || echo "  No user SSH keys found"
+echo ""
+
+echo "[*] Docker configs:"
+find /host -name ".docker" -type d 2>/dev/null | head -10 || echo "  No Docker configs found"
+find /host -name "config.json" -path "*/.docker/*" 2>/dev/null | head -10 || echo "  No Docker config files found"
+echo ""
+
+echo "[*] Kubernetes configs:"
+find /host -path "*/.kube/config" 2>/dev/null | head -10 || echo "  No kubeconfig found"
+find /host -name "kubeconfig" 2>/dev/null | head -10 || echo "  No kubeconfig found"
+echo ""
+
+echo "[*] Service account tokens:"
+find /host -path "*/serviceaccount/token" 2>/dev/null | head -10 || echo "  No service account tokens found"
+echo ""
+
+echo "[*] AWS credentials:"
+find /host -name ".aws" -type d 2>/dev/null | head -10 || echo "  No AWS credentials found"
+echo ""
+
+echo "=== 9. SCHEDULED TASKS ==="
+echo "[*] Crontab (root):"
+chroot /host crontab -l -u root 2>/dev/null || echo "  No root crontab or cannot read"
+echo ""
+
+echo "[*] System crontab:"
+chroot /host cat /etc/crontab 2>/dev/null | grep -v "^#" | grep -v "^$" || echo "  No system crontab or cannot read"
+echo ""
+
+echo "[*] Cron directories:"
+chroot /host ls -la /etc/cron.d/ 2>/dev/null | head -10 || echo "  Cannot read cron.d"
+chroot /host ls -la /etc/cron.daily/ 2>/dev/null | head -10 || echo "  Cannot read cron.daily"
+echo ""
+
+echo "=== 10. FILE SYSTEM MOUNTS ==="
+echo "[*] Mount points:"
+chroot /host mount 2>/dev/null | head -20 || cat /host/proc/mounts | head -20 || echo "  Cannot read mounts"
+echo ""
+
+echo "[*] Fstab:"
+chroot /host cat /etc/fstab 2>/dev/null | grep -v "^#" | grep -v "^$" || echo "  Cannot read fstab"
 echo ""
 
 echo "=== 11. ENVIRONMENT VARIABLES ==="
-echo "[*] System Environment (from /proc/1/environ):"
-cat /host/proc/1/environ 2>/dev/null | tr '\0' '\n' | head -20
+echo "[*] System environment (from /proc):"
+chroot /host cat /proc/1/environ 2>/dev/null | tr '\0' '\n' | head -20 || echo "  Cannot read process environment"
 echo ""
 
-echo "=== 12. LOG FILES ==="
-echo "[*] Recent Auth Logs:"
-chroot /host tail -20 /var/log/auth.log 2>/dev/null || chroot /host tail -20 /var/log/secure 2>/dev/null || echo "  Cannot access auth logs"
+echo "=== 12. CLOUD PROVIDER METADATA ==="
+echo "[*] AWS metadata:"
+curl -s --max-time 2 http://169.254.169.254/latest/meta-data/ 2>/dev/null | head -5 || echo "  Not AWS or metadata not accessible"
 echo ""
 
-echo "[*] Recent System Logs:"
-chroot /host journalctl -n 20 2>/dev/null | head -20 || echo "  journalctl not available"
+echo "[*] GCP metadata:"
+curl -s --max-time 2 -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/ 2>/dev/null | head -5 || echo "  Not GCP or metadata not accessible"
 echo ""
 
-echo "=== 13. CLOUD PROVIDER METADATA ==="
-echo "[*] AWS Metadata:"
-curl -s --max-time 2 http://169.254.169.254/latest/meta-data/ 2>/dev/null | head -10 || echo "  Not AWS or metadata not accessible"
-echo ""
-
-echo "[*] GCP Metadata:"
-curl -s --max-time 2 -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/ 2>/dev/null | head -10 || echo "  Not GCP or metadata not accessible"
-echo ""
-
-echo "[*] Azure Metadata:"
+echo "[*] Azure metadata:"
 curl -s --max-time 2 -H "Metadata: true" http://169.254.169.254/metadata/instance?api-version=2021-02-01 2>/dev/null | head -5 || echo "  Not Azure or metadata not accessible"
+echo ""
+
+echo "=== 13. LOG FILES ==="
+echo "[*] Recent auth logs:"
+chroot /host tail -20 /var/log/auth.log 2>/dev/null || \
+chroot /host tail -20 /var/log/secure 2>/dev/null || echo "  Cannot read auth logs"
+echo ""
+
+echo "[*] Recent syslog:"
+chroot /host tail -20 /var/log/syslog 2>/dev/null || \
+chroot /host tail -20 /var/log/messages 2>/dev/null || echo "  Cannot read syslog"
 echo ""
 
 echo "=========================================="
