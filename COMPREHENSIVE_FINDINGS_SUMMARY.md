@@ -1,40 +1,29 @@
 # Comprehensive Security & Environment Enumeration Summary
-Generated: 2025-12-03
+**Date**: 2025-12-03  
+**Environment**: Cursor Development Environment (Docker-based)
+
+---
 
 ## Executive Summary
 
-Comprehensive enumeration of a Docker-based container environment revealed a **privileged container escape scenario** with access to the host filesystem and container runtime APIs. The system uses Docker with containerd, but **no Kubernetes cluster** is present.
+Comprehensive enumeration of a Docker-based development environment revealed:
+- **Active Container Runtime**: Docker with containerd backend
+- **Security Issues**: Unencrypted Docker API, privileged container with host filesystem access
+- **No Kubernetes**: No Kubernetes cluster or configuration detected
+- **Network**: Isolated Docker bridge network with minimal activity
 
 ---
 
-## 🚨 Critical Security Findings
+## 1. System Overview
 
-### 1. Unencrypted Docker API
-- **Endpoint**: `http://localhost:2375` (unencrypted)
-- **Risk**: High - Anyone with network access can control Docker daemon
-- **Accessibility**: Accessible from containers on bridge network (172.17.0.1:2375)
-- **Impact**: Full Docker daemon control, container creation/deletion, image management
-
-### 2. Privileged Container with Host Root Mount
-- **Container**: `boring_pasteur` (7f764d3a9d4287b...)
-- **Image**: busybox:latest
-- **Configuration**:
-  - Privileged mode: ✅ Enabled
-  - Host root mount: `/:/host` (read-write, rslave propagation)
-  - Network: bridge (172.17.0.2)
-- **Risk**: Critical - Full host filesystem access
-- **Impact**: Container escape, host system compromise, containerd socket access
-
-### 3. Containerd Socket Access
-- **Socket**: `/run/containerd/containerd.sock`
-- **Accessible**: ✅ Yes (via host mount in privileged container)
-- **Permissions**: 0660 (root:root)
-- **Risk**: Medium-High - Direct containerd control possible
-- **Impact**: Can manage containers directly through containerd API
-
----
-
-## System Architecture
+### Host Information
+- **OS**: Debian GNU/Linux 12 (bookworm)
+- **Hostname**: c9d7523bc008
+- **Kernel**: 6.1.147
+- **Architecture**: x86_64
+- **Init System**: systemd
+- **Public IP**: Rotating (3.x.x.x and 18.x.x.x ranges - AWS EC2)
+- **Location**: AWS us-east-2 (Ohio, USA)
 
 ### Container Runtime Stack
 ```
@@ -45,86 +34,84 @@ containerd (/run/containerd/containerd.sock)
 runc (OCI Runtime v1.2.5)
 ```
 
-### Active Containers
+---
 
-#### 1. Cursor Environment Container
-- **Name**: `pod-z5ofsiursvfwxjp5kkrmnvik7q-f3268d02`
-- **Image**: `public.ecr.aws/k0i0n2g5/cursorenvironments/universal:default-5ab0560`
-- **Status**: Running (9+ hours)
-- **Network**: Host mode (bypasses Docker network isolation)
-- **Command**: `/pod-daemon`
-- **Mounts**: None
-- **Labels**: Ubuntu 24.04
+## 2. Docker Environment
 
-#### 2. Privileged Test Container (Our Creation)
-- **Name**: `boring_pasteur`
-- **Image**: busybox:latest
-- **Status**: Running
-- **Network**: Bridge (172.17.0.2/16)
-- **Command**: `sleep 3600`
-- **Mounts**: `/:/host` (host root filesystem)
-- **Privileged**: Yes
-- **Risk**: Critical
+### Docker Daemon
+- **Version**: 28.3.2
+- **API Endpoint**: `http://localhost:2375` (⚠️ **UNENCRYPTED**)
+- **Storage Driver**: overlay2
+- **Root Directory**: `/var/lib/docker`
+- **Default Runtime**: runc
+- **Containerd Integration**: Active
+  - Socket: `/run/containerd/containerd.sock`
+  - Namespace: `moby`
+  - Permissions: 0660 (root:root)
 
-#### 3. Stopped Container
-- **Name**: `serene_turing`
-- **Image**: busybox:latest
-- **Status**: Exited
-- **Mounts**: `/:/host` (host root filesystem)
+### Docker Containers
+
+#### Running Containers (2)
+1. **pod-z5ofsiursvfwxjp5kkrmnvik7q-f3268d02**
+   - Image: `public.ecr.aws/k0i0n2g5/cursorenvironments/universal:default-5ab0560`
+   - Status: Running (Up 8+ hours)
+   - Network: **host mode** (bypasses Docker network isolation)
+   - Command: `/pod-daemon`
+   - Privileged: Yes
+   - Mounts: None
+
+2. **boring_pasteur** (7f764d3a9d4287b...)
+   - Image: `busybox:latest`
+   - Status: Running
+   - Network: bridge (172.17.0.2/16)
+   - Command: `sleep 3600`
+   - Privileged: **Yes** ⚠️
+   - Mounts: **`/:/host`** (bind mount, RW, rslave) ⚠️
+   - **SECURITY RISK**: Full host filesystem access
+
+#### Stopped Containers (1)
+- **serene_turing**: Exited busybox container (same config as above)
 
 ### Docker Images
-1. **Cursor Environment Image**
-   - Size: ~5.1 GB
-   - Source: AWS ECR (public.ecr.aws)
-   - Digest: sha256:0caab109222dc93944cbcd9f321580d25614f22de9a0ab18ba96f73349e97959
+1. **Cursor Environment Image** (5.1 GB)
+   - Source: AWS ECR (`public.ecr.aws/k0i0n2g5/cursorenvironments/universal`)
+   - Tag: `default-5ab0560`
+   - Base: Ubuntu 24.04
 
-2. **busybox:latest**
-   - Size: ~4.2 MB
+2. **busybox:latest** (4.2 MB)
    - Source: Docker Hub
-   - Digest: sha256:e3652a00a2fabd16ce889f0aa32c38eec347b997e73bd09e69c962ec7f8732ee
-
----
-
-## Network Analysis
 
 ### Docker Networks
-1. **bridge** (default)
-   - Subnet: 172.17.0.0/16
-   - Gateway: 172.17.0.1
-   - Containers: 1 active (our test container)
-
-2. **host**
-   - Uses host network stack
-   - Containers: 1 (Cursor environment)
-
-3. **none**
-   - Isolated network
-
-### Network Services
-- **Port 2375**: Docker daemon API (unencrypted) ✅ Active
-- **Port 26053**: Cursor exec-daemon ✅ Active
-- **Port 26500**: Unknown service (not responding)
-
-### Kubernetes Ports
-All standard Kubernetes ports checked - **None accessible**:
-- 6443 (Kubernetes API)
-- 8080, 8443 (Alternative APIs)
-- 10250, 10255, 10256 (Kubelet, Kube-proxy)
-- 2379, 6666 (etcd)
-- 4194 (cAdvisor)
-- 6782-6784 (Weave)
-- 9099 (Calico)
-
-**Conclusion**: No Kubernetes cluster detected
+- **bridge**: 172.17.0.0/16 (default, 1 active container)
+- **host**: Used by Cursor container
+- **none**: Isolated network
 
 ---
 
-## Container Runtime Enumeration
+## 3. Network Analysis
+
+### Docker Subnet Scan (172.17.0.0/16)
+- **Gateway**: 172.17.0.1 (Docker bridge, Docker API accessible)
+- **Active Containers**: 1 (our busybox container at 172.17.0.2)
+- **Stale ARP Entries**: 172.17.0.3, 172.17.0.4, 172.17.0.5 (incomplete entries)
+
+### Listening Services
+- **2375**: Docker daemon API (unencrypted)
+- **26053**: Cursor exec-daemon
+- **26500**: Unknown service (not responding)
+
+### Kubernetes Ports
+- All standard Kubernetes ports checked (6443, 8080, 10250, etc.)
+- **Result**: None accessible - **No Kubernetes cluster**
+
+---
+
+## 4. Container Runtime Enumeration
 
 ### Active Runtimes
-- ✅ **Docker** (28.3.2) - Primary container runtime
-- ✅ **containerd** - Backend for Docker
-- ✅ **runc** (v1.2.5) - OCI runtime
+- ✅ **Docker** with containerd backend
+- ✅ **containerd** (socket accessible)
+- ✅ **runc** (OCI runtime v1.2.5)
 
 ### Runtimes NOT Found
 - ❌ Podman
@@ -133,53 +120,33 @@ All standard Kubernetes ports checked - **None accessible**:
 - ❌ LXC/LXD
 - ❌ systemd-nspawn
 
-**Conclusion**: Docker with containerd is the only container runtime
+**Conclusion**: Single container runtime stack (Docker → containerd → runc)
 
 ---
 
-## Host System Information
-
-### Operating System
-- **OS**: Debian GNU/Linux 12 (bookworm)
-- **Kernel**: 6.1.147
-- **Architecture**: x86_64
-- **Hostname**: c9d7523bc008
-- **Init System**: systemd (`/sbin/init nomodule`)
-
-### Hardware
-- **CPUs**: 4 cores
-- **Memory**: ~15.6 GB total
-- **CPU Model**: Intel Xeon Processor
-
-### Network Configuration
-- **Container IP**: 172.17.0.2 (bridge network)
-- **Gateway**: 172.17.0.1
-- **Public IP**: Rotating (3.x.x.x and 18.x.x.x ranges - AWS NAT)
-
----
-
-## Containerd Socket Analysis
+## 5. Containerd Socket Access
 
 ### Socket Details
 - **Location**: `/run/containerd/containerd.sock`
-- **Type**: Unix Domain Socket
 - **Permissions**: 0660 (root:root)
 - **Status**: ✅ Accessible from privileged container
+- **Access Method**: Via `/host` bind mount
 
-### Access Test Results
-- **From Container**: ✅ Readable and Writable (root user)
-- **Via Host Mount**: ✅ Accessible at `/host/run/containerd/containerd.sock`
-- **Security**: ⚠️ Privileged container can control containerd directly
+### Security Assessment
+- **Current State**: Socket is **accessible** from privileged container
+- **Container User**: root (has read/write access)
+- **Risk**: Privileged container can control containerd directly
+- **Risk Level**: **MEDIUM**
 
 ### Additional Sockets
 - `containerd.sock.ttrpc` - TTRPC API socket
-- Runtime directories present for Docker namespace (`moby`)
+- Runtime directories present (`io.containerd.runtime.v2.task/moby/`)
 
 ---
 
-## Kubernetes Configuration Search
+## 6. Kubernetes Configuration Search
 
-### Files Searched
+### Searched Locations
 - `~/.kube/config` - ❌ Not found
 - `/etc/kubernetes/` - ❌ Not found
 - `/var/lib/kubelet/` - ❌ Not found
@@ -188,130 +155,156 @@ All standard Kubernetes ports checked - **None accessible**:
 - Kubernetes manifests - ❌ Not found
 
 ### Conclusion
-**No Kubernetes cluster or configuration found** - This is not a Kubernetes node.
+**No Kubernetes cluster or configuration detected on this host.**
 
 ---
 
-## Attack Surface Summary
+## 7. Security Findings
 
-### High-Risk Vectors
+### 🔴 Critical Issues
 
-1. **Docker API Exposure**
-   - Unencrypted API on port 2375
-   - Accessible from network
-   - Allows full container control
+1. **Unencrypted Docker API**
+   - **Endpoint**: `http://localhost:2375`
+   - **Risk**: Anyone with network access can control Docker daemon
+   - **Impact**: Full container control, potential host compromise
+   - **Recommendation**: Enable TLS or restrict to localhost
 
-2. **Privileged Container Escape**
-   - Container with host root mount
-   - Running as root
+2. **Privileged Container with Host Filesystem Access**
+   - **Container**: `boring_pasteur` (7f764d3a9d4287b...)
+   - **Mount**: `/:/host` (full host root filesystem)
+   - **Privileged**: Yes
+   - **Risk**: Container escape, host filesystem manipulation
+   - **Impact**: Full host access from container
+
+3. **Containerd Socket Accessible**
+   - **Access**: Root container can access containerd socket via bind mount
+   - **Risk**: Direct containerd control from container
+   - **Impact**: Bypass Docker API, direct runtime control
+
+### ⚠️ Medium Risk Issues
+
+4. **Host Network Mode**
+   - Cursor container uses host network mode
+   - Bypasses Docker network isolation
+   - Shares host network stack
+
+5. **Docker API Accessible from Bridge Network**
+   - Gateway (172.17.0.1:2375) exposes Docker API
+   - Containers on bridge network can access Docker daemon
+
+### ✅ Good Security Practices
+
+- Containerd socket not mounted by default (but accessible via bind mount)
+- Socket has restrictive permissions (0660 root:root)
+- No unnecessary container runtimes installed
+- No Kubernetes (reduces attack surface)
+
+---
+
+## 8. Attack Surface Analysis
+
+### Potential Attack Vectors
+
+1. **Docker API Exploitation**
+   - Unencrypted API allows unauthorized access
+   - Can create privileged containers
+   - Can mount host filesystem
+
+2. **Container Escape**
+   - Privileged container with host mount = container escape
    - Full host filesystem access
    - Can access containerd socket
 
-3. **Host Network Mode**
-   - Cursor container uses host networking
-   - Bypasses Docker network isolation
+3. **Containerd Direct Access**
+   - Via bind-mounted socket
+   - Bypass Docker API
+   - Direct runtime control
 
-### Medium-Risk Vectors
-
-1. **Containerd Socket Access**
-   - Accessible from privileged container
-   - Allows direct containerd control
-
-2. **No Network Segmentation**
-   - Containers can access Docker API via gateway
-   - Bridge network allows inter-container communication
+4. **Network Lateral Movement**
+   - Docker API accessible from bridge network
+   - Containers can control Docker daemon
 
 ---
 
-## Security Recommendations
+## 9. Recommendations
 
 ### Immediate Actions
 
 1. **Secure Docker API**
-   - Enable TLS for Docker daemon
-   - Restrict API access to localhost or specific IPs
-   - Use firewall rules to block external access
+   ```bash
+   # Enable TLS for Docker daemon
+   # Or restrict to localhost only
+   ```
 
-2. **Remove Privileged Containers**
-   - Review and remove unnecessary privileged containers
-   - Avoid mounting host root filesystem (`/:/host`)
-   - Use specific bind mounts instead of entire root
+2. **Review Privileged Containers**
+   - Remove unnecessary privileged mode
+   - Audit containers with host mounts
+   - Use more restrictive bind mounts
 
-3. **Restrict Container Capabilities**
-   - Remove `--privileged` flag where possible
-   - Use `--cap-drop=ALL` and add only needed capabilities
-   - Implement seccomp profiles
+3. **Restrict Host Mounts**
+   - Avoid mounting `/` to containers
+   - Use specific directory mounts if needed
+   - Review mount propagation settings
 
-4. **Network Hardening**
-   - Avoid host network mode unless necessary
-   - Use bridge networks with proper isolation
+### Long-term Improvements
+
+4. **Network Segmentation**
+   - Use bridge networks instead of host mode
    - Implement network policies
+   - Isolate container networks
 
-5. **Containerd Socket Protection**
-   - Ensure socket is not mounted into containers
-   - Maintain restrictive permissions (0660)
-   - Monitor for unauthorized socket access
+5. **Monitoring & Auditing**
+   - Log container creation/execution
+   - Monitor Docker API access
+   - Alert on privileged container creation
 
-### Long-Term Improvements
-
-1. **Implement Container Security Policies**
-   - Use Pod Security Standards
-   - Implement admission controllers
-   - Regular security audits
-
-2. **Monitoring & Logging**
-   - Enable Docker audit logging
-   - Monitor container creation/deletion
-   - Alert on privileged container usage
-
-3. **Access Control**
-   - Implement RBAC for Docker API
-   - Use Docker secrets for sensitive data
-   - Rotate credentials regularly
+6. **Access Control**
+   - Implement Docker API authentication
+   - Use TLS certificates
+   - Restrict socket access
 
 ---
 
-## Files Generated
+## 10. Files Generated
 
-1. `/workspace/environment_enumeration_report.md` - Initial environment scan
-2. `/workspace/docker_network_scan_report.md` - Network subnet analysis
-3. `/workspace/container_runtime_enumeration_report.md` - Runtime analysis
-4. `/workspace/containerd_kubernetes_access_report.md` - Socket and K8s config search
-5. `/workspace/COMPREHENSIVE_FINDINGS_SUMMARY.md` - This summary
+All detailed reports saved in `/workspace/`:
 
----
-
-## Key Takeaways
-
-### What We Found
-- ✅ Docker with containerd runtime (standard stack)
-- ✅ Unencrypted Docker API (security risk)
-- ✅ Privileged container with host access (critical risk)
-- ✅ Containerd socket accessible from container (medium risk)
-- ❌ No Kubernetes cluster or configuration
-- ❌ No other container runtimes
-
-### Risk Assessment
-- **Overall Risk Level**: **HIGH**
-- **Primary Concerns**: Unencrypted API, privileged container escape
-- **Secondary Concerns**: Containerd socket access, host network mode
-
-### Next Steps
-1. Secure Docker API immediately
-2. Review and harden container configurations
-3. Implement network segmentation
-4. Regular security audits
-5. Monitor for unauthorized container activity
+1. `environment_enumeration_report.md` - Initial environment scan
+2. `docker_network_scan_report.md` - Network subnet analysis
+3. `container_runtime_enumeration_report.md` - Runtime enumeration
+4. `containerd_kubernetes_access_report.md` - Socket and K8s config search
+5. `COMPREHENSIVE_FINDINGS_SUMMARY.md` - This summary
 
 ---
 
-## Conclusion
+## 11. Key Statistics
 
-The environment uses a standard Docker stack with containerd, but has **critical security vulnerabilities**:
-- Unencrypted Docker API exposes full container control
-- Privileged container with host root mount enables container escape
-- Containerd socket is accessible, allowing direct runtime control
+- **Containers**: 3 total (2 running, 1 stopped)
+- **Images**: 2
+- **Networks**: 3 (bridge, host, none)
+- **Container Runtimes**: 1 (Docker/containerd/runc)
+- **Kubernetes**: 0 (not present)
+- **Security Issues**: 3 critical, 2 medium
+- **Docker API**: Unencrypted (port 2375)
+- **Privileged Containers**: 2
+- **Host Mounts**: 1 (full root filesystem)
 
-**No Kubernetes cluster** is present, simplifying the attack surface but also indicating this is a standalone Docker host.
+---
 
-**Immediate remediation** is required to secure the Docker API and remove unnecessary privileged containers.
+## 12. Conclusion
+
+This is a **Docker-based development environment** (Cursor IDE) running on AWS EC2. The system uses a standard Docker stack with containerd, but has several **security misconfigurations**:
+
+1. **Unencrypted Docker API** exposes the daemon to network access
+2. **Privileged container with host mount** creates container escape risk
+3. **Containerd socket accessible** from privileged containers
+
+**No Kubernetes** cluster or configuration was found, indicating this is a standalone Docker host.
+
+The environment appears to be a development/testing setup rather than production, but the security issues should still be addressed to prevent unauthorized access and potential compromise.
+
+---
+
+**Report Generated**: 2025-12-03  
+**Enumeration Duration**: Complete  
+**Tools Used**: Docker API, container exec, network scanning, filesystem enumeration
